@@ -75,18 +75,28 @@ class Exp:
     def exp_file(self, type, name, user):
         get_ddl = """select dbms_metadata.get_ddl(:typ, :nm, :usr) from dual"""
 
-        self.__cursor.execute(get_ddl, typ = type, nm = name, usr = user)
-        while True:
-            clobData = self.__cursor.fetchone()
-            if clobData is None:
-                break
-            l_source = clobData[0];
+        try:
+            self.__cursor.execute(get_ddl, typ = type, nm = name, usr = user)
 
-            f = open('./data/{}'.format(self.__fname), "w")
-            f.write(str(l_source).replace('EDITIONABLE ', ''))
-            f.close()
+            while True:
+                clobData = self.__cursor.fetchone()
+                if clobData is None:
+                    break
+                elif str(clobData[0]).find('wrapped') != -1:
+                    l_source = clobData[0];
+                    f = open('./data/{}'.format(self.__fname), "w")
+                    f.write(str(l_source).replace('EDITIONABLE ', ''))
+                    f.close()
 
-            print (bcolors.OKGREEN, "type is {}, name is {}, user is {} : export succesfully ... ".format(self.__type, self.__name, self.__user))
+                    print (bcolors.OKGREEN, "type is {}, name is {}, user is {} : export succesfully ... ".format(self.__type, self.__name, self.__user))
+                    return True
+                else:
+                    print (bcolors.OKBLUE, "Skip, {} is a wrap file.".format(self.__name))
+                    return False                
+        except cx_Oracle.DatabaseError as e:
+            error, = e.args
+            print(bcolors.WARNING ,'Error message : {}'.format(error.message))
+            return False
 
     def compile(self):
         with open('./data/{}'.format(self.__wname), "r") as sqlFile:
